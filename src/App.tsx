@@ -11,7 +11,17 @@ import IntegrationsPage from "./pages/IntegrationsPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Configure query client with optimized settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,
+      refetchInterval: 30000, // Refetch every 30 seconds
+      staleTime: 10000, // Consider data stale after 10 seconds
+      retry: 1, // Retry failed requests once
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

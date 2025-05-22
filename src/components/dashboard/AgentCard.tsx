@@ -10,8 +10,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-export type AgentStatus = "online" | "offline" | "busy" | "error";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toggleAgentStatus, AgentStatus } from "@/services/agentService";
 
 interface AgentCardProps {
   id: string;
@@ -34,6 +34,15 @@ const AgentCard: React.FC<AgentCardProps> = ({
   cpuUsage = 0,
   memoryUsage = 0,
 }) => {
+  const queryClient = useQueryClient();
+  
+  const { mutate: toggleStatus, isPending } = useMutation({
+    mutationFn: () => toggleAgentStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+    },
+  });
+  
   const getStatusDetails = () => {
     switch (status) {
       case "online":
@@ -133,8 +142,20 @@ const AgentCard: React.FC<AgentCardProps> = ({
           </Tooltip>
         </TooltipProvider>
         
-        <Button variant="outline" size="sm">
-          {status === "offline" ? "Start" : "Manage"}
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => toggleStatus()}
+          disabled={isPending || status === "busy"}
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+              {status === "offline" ? "Starting..." : "Stopping..."}
+            </>
+          ) : (
+            status === "offline" ? "Start" : "Stop"
+          )}
         </Button>
       </div>
     </div>

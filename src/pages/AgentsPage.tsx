@@ -1,8 +1,8 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { PlusCircle, Search } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import AgentCard, { AgentStatus } from "@/components/dashboard/AgentCard";
+import AgentCard from "@/components/dashboard/AgentCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,86 +12,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// Sample data for agents
-const allAgents = [
-  {
-    id: "agent-1",
-    name: "Content Writer",
-    description: "Creates blog posts and social media content",
-    model: "LLama 3 70B",
-    status: "online" as AgentStatus,
-    lastAction: "Generated blog post: '10 ways to improve productivity'",
-    cpuUsage: 32,
-    memoryUsage: 45,
-  },
-  {
-    id: "agent-2",
-    name: "Code Reviewer",
-    description: "Reviews code commits and provides feedback",
-    model: "Mistral Medium",
-    status: "busy" as AgentStatus,
-    lastAction: "Reviewing PR #143: 'Fix authentication flow'",
-    cpuUsage: 78,
-    memoryUsage: 65,
-  },
-  {
-    id: "agent-3",
-    name: "Data Analyst",
-    description: "Analyzes metrics and generates reports",
-    model: "LLama 3 8B",
-    status: "offline" as AgentStatus,
-    lastAction: "Generated monthly financial report",
-    cpuUsage: 0,
-    memoryUsage: 0,
-  },
-  {
-    id: "agent-4",
-    name: "Customer Support",
-    description: "Handles customer queries and generates responses",
-    model: "LLama 3 8B",
-    status: "online" as AgentStatus,
-    lastAction: "Responded to customer query about pricing",
-    cpuUsage: 24,
-    memoryUsage: 38,
-  },
-  {
-    id: "agent-5",
-    name: "Finance Assistant",
-    description: "Processes financial data and generates reports",
-    model: "Mistral Large",
-    status: "error" as AgentStatus,
-    lastAction: "Failed to connect to QuickBooks API",
-    cpuUsage: 12,
-    memoryUsage: 25,
-  },
-  {
-    id: "agent-6",
-    name: "Sales Analyzer",
-    description: "Analyzes sales data and provides insights",
-    model: "Vicuna 13B",
-    status: "offline" as AgentStatus,
-    lastAction: "Generated quarterly sales report",
-    cpuUsage: 0,
-    memoryUsage: 0,
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { fetchAgents, Agent } from "@/services/agentService";
 
 const AgentsPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<string>("all");
-  const [modelFilter, setModelFilter] = React.useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [modelFilter, setModelFilter] = useState<string>("all");
   
-  const filteredAgents = allAgents.filter((agent) => {
+  // Fetch agents from Supabase
+  const { data: agents = [], isLoading } = useQuery({
+    queryKey: ['agents'],
+    queryFn: fetchAgents
+  });
+  
+  const filteredAgents = agents.filter((agent) => {
     const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         agent.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         (agent.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesStatus = statusFilter === "all" || agent.status === statusFilter;
     const matchesModel = modelFilter === "all" || agent.model === modelFilter;
     
     return matchesSearch && matchesStatus && matchesModel;
   });
   
-  const models = ["all", ...Array.from(new Set(allAgents.map((agent) => agent.model)))];
+  const models = ["all", ...Array.from(new Set(agents.map((agent) => agent.model)))];
 
   return (
     <DashboardLayout>
@@ -142,14 +86,30 @@ const AgentsPage: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAgents.length === 0 ? (
+          {isLoading ? (
+            Array(6).fill(0).map((_, index) => (
+              <div key={index} className="rounded-lg border bg-card text-card-foreground shadow-sm h-[250px] animate-pulse">
+                <div className="p-6 h-full bg-secondary/20"></div>
+              </div>
+            ))
+          ) : filteredAgents.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <h3 className="text-xl font-semibold mb-2">No agents found</h3>
               <p className="text-muted-foreground">Try adjusting your filters or create a new agent.</p>
             </div>
           ) : (
             filteredAgents.map((agent) => (
-              <AgentCard key={agent.id} {...agent} />
+              <AgentCard 
+                key={agent.id}
+                id={agent.id}
+                name={agent.name}
+                description={agent.description || ''}
+                model={agent.model}
+                status={agent.status}
+                lastAction={agent.last_action || undefined}
+                cpuUsage={agent.cpu_usage || 0}
+                memoryUsage={agent.memory_usage || 0}
+              />
             ))
           )}
         </div>

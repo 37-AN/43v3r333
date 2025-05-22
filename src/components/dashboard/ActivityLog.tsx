@@ -1,10 +1,11 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
-type LogLevel = "info" | "warning" | "error" | "success";
+export type LogLevel = "info" | "warning" | "error" | "success";
 
-interface LogEntry {
+export interface LogEntry {
   id: string;
   timestamp: string;
   message: string;
@@ -15,9 +16,10 @@ interface LogEntry {
 interface ActivityLogProps {
   logs: LogEntry[];
   className?: string;
+  isLoading?: boolean;
 }
 
-const ActivityLog: React.FC<ActivityLogProps> = ({ logs, className }) => {
+const ActivityLog: React.FC<ActivityLogProps> = ({ logs, className, isLoading = false }) => {
   const getLevelStyles = (level: LogLevel) => {
     switch (level) {
       case "info":
@@ -33,6 +35,20 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ logs, className }) => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}>
+        <div className="p-4 border-b border-border">
+          <h3 className="text-lg font-medium">Activity Log</h3>
+        </div>
+        <div className="flex flex-col items-center justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-2 text-sm text-muted-foreground">Loading activity logs...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}>
       <div className="p-4 border-b border-border">
@@ -46,7 +62,9 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ logs, className }) => {
             {logs.map((log) => (
               <div key={log.id} className="p-4">
                 <div className="flex justify-between items-start mb-1">
-                  <span className="text-xs text-muted-foreground">{log.timestamp}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(log.timestamp).toLocaleString()}
+                  </span>
                   <div className={cn("px-2 py-0.5 text-xs font-medium rounded", getLevelStyles(log.level))}>
                     {log.level}
                   </div>

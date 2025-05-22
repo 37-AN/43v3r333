@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { 
   Bot, 
   Workflow, 
@@ -12,132 +12,82 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import StatusCard from "@/components/dashboard/StatusCard";
-import WorkflowCard, { WorkflowStatus } from "@/components/dashboard/WorkflowCard";
-import AgentCard, { AgentStatus } from "@/components/dashboard/AgentCard";
+import WorkflowCard from "@/components/dashboard/WorkflowCard";
+import AgentCard from "@/components/dashboard/AgentCard";
 import ActivityLog from "@/components/dashboard/ActivityLog";
-
-// Placeholder sample data
-const sampleWorkflows = [
-  {
-    id: "workflow-1",
-    name: "Content Generation",
-    description: "Generates blog content from Discord ideas",
-    status: "active" as WorkflowStatus,
-    lastRun: "Today, 10:45 AM",
-    nextRun: "Today, 4:00 PM",
-  },
-  {
-    id: "workflow-2",
-    name: "Financial Analysis",
-    description: "Daily sales data analysis and reporting",
-    status: "completed" as WorkflowStatus,
-    lastRun: "Today, 9:00 AM", 
-    nextRun: "Tomorrow, 9:00 AM",
-  },
-  {
-    id: "workflow-3",
-    name: "Code Review",
-    description: "Automated PR reviews on GitHub repositories",
-    status: "idle" as WorkflowStatus,
-    lastRun: "Yesterday, 5:30 PM",
-    nextRun: "On PR creation",
-  },
-  {
-    id: "workflow-4",
-    name: "Customer Support",
-    description: "Handles customer queries and generates responses",
-    status: "error" as WorkflowStatus,
-    lastRun: "Today, 11:23 AM",
-    nextRun: "Manual restart required",
-  },
-];
-
-const sampleAgents = [
-  {
-    id: "agent-1",
-    name: "Content Writer",
-    description: "Creates blog posts and social media content",
-    model: "LLama 3 70B",
-    status: "online" as AgentStatus,
-    lastAction: "Generated blog post: '10 ways to improve productivity'",
-    cpuUsage: 32,
-    memoryUsage: 45,
-  },
-  {
-    id: "agent-2",
-    name: "Code Reviewer",
-    description: "Reviews code commits and provides feedback",
-    model: "Mistral Medium",
-    status: "busy" as AgentStatus,
-    lastAction: "Reviewing PR #143: 'Fix authentication flow'",
-    cpuUsage: 78,
-    memoryUsage: 65,
-  },
-  {
-    id: "agent-3",
-    name: "Data Analyst",
-    description: "Analyzes metrics and generates reports",
-    model: "LLama 3 8B",
-    status: "offline" as AgentStatus,
-    lastAction: "Generated monthly financial report",
-    cpuUsage: 0,
-    memoryUsage: 0,
-  },
-];
-
-const sampleLogs = [
-  {
-    id: "log-1",
-    timestamp: "2023-05-22 12:01:23",
-    message: "Content generation workflow completed successfully",
-    source: "n8n Workflow",
-    level: "success" as const,
-  },
-  {
-    id: "log-2",
-    timestamp: "2023-05-22 11:45:16",
-    message: "Code Reviewer agent started PR analysis",
-    source: "Agent Manager",
-    level: "info" as const,
-  },
-  {
-    id: "log-3",
-    timestamp: "2023-05-22 11:30:05",
-    message: "GitHub integration detected new PR #143",
-    source: "Integration Service",
-    level: "info" as const,
-  },
-  {
-    id: "log-4",
-    timestamp: "2023-05-22 11:23:55",
-    message: "Customer Support agent failed to process query",
-    source: "Agent Manager",
-    level: "error" as const,
-  },
-  {
-    id: "log-5",
-    timestamp: "2023-05-22 10:15:30",
-    message: "Memory usage exceeds 70% for Data Analysis agent",
-    source: "System Monitor",
-    level: "warning" as const,
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { fetchWorkflows, Workflow as WorkflowType } from "@/services/workflowService";
+import { fetchAgents, Agent as AgentType } from "@/services/agentService";
+import { fetchLogs, LogEntry } from "@/services/logsService";
+import { toast } from "sonner";
 
 const Dashboard: React.FC = () => {
+  // Fetch workflows from Supabase
+  const { 
+    data: workflows = [], 
+    isLoading: isLoadingWorkflows,
+    error: workflowError
+  } = useQuery({
+    queryKey: ['workflows'],
+    queryFn: fetchWorkflows
+  });
+
+  // Fetch agents from Supabase
+  const { 
+    data: agents = [], 
+    isLoading: isLoadingAgents,
+    error: agentError
+  } = useQuery({
+    queryKey: ['agents'],
+    queryFn: fetchAgents
+  });
+
+  // Fetch logs from Supabase
+  const { 
+    data: logs = [], 
+    isLoading: isLoadingLogs,
+    error: logsError
+  } = useQuery({
+    queryKey: ['logs'],
+    queryFn: () => fetchLogs(10)
+  });
+
+  // Show errors if any
+  useEffect(() => {
+    if (workflowError) {
+      toast.error("Failed to load workflows");
+    }
+    if (agentError) {
+      toast.error("Failed to load agents");
+    }
+    if (logsError) {
+      toast.error("Failed to load activity logs");
+    }
+  }, [workflowError, agentError, logsError]);
+
+  // Calculate metrics for dashboard
+  const activeAgents = agents.filter(a => a.status === 'online').length;
+  const totalAgents = agents.length;
+  const totalWorkflows = workflows.length;
+  const workflowsExecutedToday = workflows.filter(w => w.last_run && new Date(w.last_run).toDateString() === new Date().toDateString()).length;
+  const pendingTasks = 5; // Mock data for now
+
   return (
     <DashboardLayout>
       <div className="grid-status-card mb-8">
         <StatusCard 
           title="Active Agents" 
-          value="2/3" 
+          value={`${activeAgents}/${totalAgents}`} 
           icon={<Bot className="h-5 w-5" />}
           trend={{ value: 5, positive: true }}
+          loading={isLoadingAgents}
         />
         <StatusCard 
           title="Workflows Executed" 
-          value="24" 
+          value={String(workflowsExecutedToday)} 
           icon={<Workflow className="h-5 w-5" />}
           trend={{ value: 12, positive: true }}
+          loading={isLoadingWorkflows}
         />
         <StatusCard 
           title="Average Response Time" 
@@ -147,7 +97,7 @@ const Dashboard: React.FC = () => {
         />
         <StatusCard 
           title="Tasks Pending" 
-          value="5" 
+          value={String(pendingTasks)} 
           icon={<GanttChart className="h-5 w-5" />}
           trend={{ value: 2, positive: false }}
         />
@@ -159,9 +109,29 @@ const Dashboard: React.FC = () => {
             <h2 className="text-xl font-semibold">Active Workflows</h2>
           </div>
           <div className="grid-workflow">
-            {sampleWorkflows.map((workflow) => (
-              <WorkflowCard key={workflow.id} {...workflow} />
-            ))}
+            {isLoadingWorkflows ? (
+              Array(4).fill(0).map((_, index) => (
+                <div key={index} className="rounded-lg border bg-card text-card-foreground shadow-sm h-[200px] animate-pulse">
+                  <div className="p-6 h-full bg-secondary/20"></div>
+                </div>
+              ))
+            ) : workflows.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <h3 className="text-xl font-semibold mb-2">No workflows found</h3>
+                <p className="text-muted-foreground">Create a new workflow to get started.</p>
+              </div>
+            ) : (
+              workflows.slice(0, 4).map((workflow) => (
+                <WorkflowCard 
+                  key={workflow.id} 
+                  name={workflow.name}
+                  description={workflow.description || ''}
+                  status={workflow.status}
+                  lastRun={workflow.last_run ? new Date(workflow.last_run).toLocaleString() : undefined}
+                  nextRun={workflow.next_run ? new Date(workflow.next_run).toLocaleString() : undefined}
+                />
+              ))
+            )}
           </div>
         </div>
         
@@ -169,7 +139,16 @@ const Dashboard: React.FC = () => {
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Activity Log</h2>
           </div>
-          <ActivityLog logs={sampleLogs} />
+          <ActivityLog 
+            logs={logs.map(log => ({
+              id: log.id,
+              timestamp: log.timestamp,
+              message: log.message,
+              source: log.source,
+              level: log.level
+            }))}
+            isLoading={isLoadingLogs}
+          />
         </div>
       </div>
       
@@ -210,9 +189,32 @@ const Dashboard: React.FC = () => {
           <h2 className="text-xl font-semibold">AI Agents</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sampleAgents.map((agent) => (
-            <AgentCard key={agent.id} {...agent} />
-          ))}
+          {isLoadingAgents ? (
+            Array(3).fill(0).map((_, index) => (
+              <div key={index} className="rounded-lg border bg-card text-card-foreground shadow-sm h-[250px] animate-pulse">
+                <div className="p-6 h-full bg-secondary/20"></div>
+              </div>
+            ))
+          ) : agents.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <h3 className="text-xl font-semibold mb-2">No agents found</h3>
+              <p className="text-muted-foreground">Create a new agent to get started.</p>
+            </div>
+          ) : (
+            agents.map((agent) => (
+              <AgentCard 
+                key={agent.id}
+                id={agent.id}
+                name={agent.name}
+                description={agent.description || ''}
+                model={agent.model}
+                status={agent.status}
+                lastAction={agent.last_action || undefined}
+                cpuUsage={agent.cpu_usage || 0}
+                memoryUsage={agent.memory_usage || 0}
+              />
+            ))
+          )}
         </div>
       </div>
     </DashboardLayout>

@@ -1,8 +1,8 @@
 
-import React from "react";
-import { PlusCircle, Search, Filter, FileJson } from "lucide-react";
+import React, { useState } from "react";
+import { PlusCircle, Search, FileJson } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import WorkflowCard, { WorkflowStatus } from "@/components/dashboard/WorkflowCard";
+import WorkflowCard from "@/components/dashboard/WorkflowCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,82 +18,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-
-// Sample workflow data
-const allWorkflows = [
-  {
-    id: "workflow-1",
-    name: "Content Generation",
-    description: "Generates blog content from Discord ideas",
-    status: "active" as WorkflowStatus,
-    lastRun: "Today, 10:45 AM",
-    nextRun: "Today, 4:00 PM",
-    category: "content",
-  },
-  {
-    id: "workflow-2",
-    name: "Financial Analysis",
-    description: "Daily sales data analysis and reporting",
-    status: "completed" as WorkflowStatus,
-    lastRun: "Today, 9:00 AM", 
-    nextRun: "Tomorrow, 9:00 AM",
-    category: "finance",
-  },
-  {
-    id: "workflow-3",
-    name: "Code Review",
-    description: "Automated PR reviews on GitHub repositories",
-    status: "idle" as WorkflowStatus,
-    lastRun: "Yesterday, 5:30 PM",
-    nextRun: "On PR creation",
-    category: "development",
-  },
-  {
-    id: "workflow-4",
-    name: "Customer Support",
-    description: "Handles customer queries and generates responses",
-    status: "error" as WorkflowStatus,
-    lastRun: "Today, 11:23 AM",
-    nextRun: "Manual restart required",
-    category: "support",
-  },
-  {
-    id: "workflow-5",
-    name: "Social Media Posting",
-    description: "Schedules and posts content to social media platforms",
-    status: "active" as WorkflowStatus,
-    lastRun: "Today, 8:30 AM",
-    nextRun: "Today, 2:30 PM",
-    category: "content",
-  },
-  {
-    id: "workflow-6",
-    name: "Invoice Processing",
-    description: "Processes incoming invoices and updates accounting system",
-    status: "idle" as WorkflowStatus,
-    lastRun: "Yesterday, 2:15 PM",
-    nextRun: "On invoice receipt",
-    category: "finance",
-  },
-  {
-    id: "workflow-7",
-    name: "Database Backup",
-    description: "Creates automated backups of PostgreSQL and MSSQL databases",
-    status: "completed" as WorkflowStatus,
-    lastRun: "Today, 3:00 AM",
-    nextRun: "Tomorrow, 3:00 AM",
-    category: "infrastructure",
-  },
-  {
-    id: "workflow-8",
-    name: "Error Report Analysis",
-    description: "Analyzes error logs and generates reports",
-    status: "active" as WorkflowStatus,
-    lastRun: "Today, 7:15 AM",
-    nextRun: "Every 6 hours",
-    category: "development",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { fetchWorkflows, Workflow } from "@/services/workflowService";
 
 const categoriesMap: Record<string, string> = {
   "content": "Content Management",
@@ -104,13 +30,19 @@ const categoriesMap: Record<string, string> = {
 };
 
 const WorkflowsPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<string>("all");
-  const [currentTab, setCurrentTab] = React.useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [currentTab, setCurrentTab] = useState<string>("all");
+
+  // Fetch workflows from Supabase
+  const { data: workflows = [], isLoading } = useQuery({
+    queryKey: ['workflows'],
+    queryFn: fetchWorkflows
+  });
   
-  const filteredWorkflows = allWorkflows.filter((workflow) => {
+  const filteredWorkflows = workflows.filter((workflow) => {
     const matchesSearch = workflow.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         workflow.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         (workflow.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesStatus = statusFilter === "all" || workflow.status === statusFilter;
     const matchesCategory = currentTab === "all" || workflow.category === currentTab;
     
@@ -118,7 +50,7 @@ const WorkflowsPage: React.FC = () => {
   });
   
   const getCategories = () => {
-    const categories = ["all", ...Array.from(new Set(allWorkflows.map((workflow) => workflow.category)))];
+    const categories = ["all", ...Array.from(new Set(workflows.map((workflow) => workflow.category || "uncategorized")))];
     return categories;
   };
 
@@ -162,32 +94,49 @@ const WorkflowsPage: React.FC = () => {
           </div>
         </div>
         
-        <Tabs value={currentTab} onValueChange={setCurrentTab}>
-          <TabsList className="mb-6 w-full sm:w-auto">
-            {getCategories().map((category) => (
-              <TabsTrigger key={category} value={category}>
-                {category === "all" ? "All Categories" : categoriesMap[category]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          
-          {getCategories().map((category) => (
-            <TabsContent key={category} value={category}>
-              <div className="grid-workflow">
-                {filteredWorkflows.length === 0 ? (
-                  <div className="col-span-full text-center py-12">
-                    <h3 className="text-xl font-semibold mb-2">No workflows found</h3>
-                    <p className="text-muted-foreground">Try adjusting your filters or create a new workflow.</p>
-                  </div>
-                ) : (
-                  filteredWorkflows.map((workflow) => (
-                    <WorkflowCard key={workflow.id} {...workflow} />
-                  ))
-                )}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array(6).fill(0).map((_, index) => (
+              <div key={index} className="rounded-lg border bg-card text-card-foreground shadow-sm h-[200px] animate-pulse">
+                <div className="p-6 h-full bg-secondary/20"></div>
               </div>
-            </TabsContent>
-          ))}
-        </Tabs>
+            ))}
+          </div>
+        ) : (
+          <Tabs value={currentTab} onValueChange={setCurrentTab}>
+            <TabsList className="mb-6 w-full sm:w-auto overflow-x-auto">
+              {getCategories().map((category) => (
+                <TabsTrigger key={category} value={category}>
+                  {category === "all" ? "All Categories" : category === "uncategorized" ? "Uncategorized" : categoriesMap[category] || category}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            
+            {getCategories().map((category) => (
+              <TabsContent key={category} value={category}>
+                <div className="grid-workflow">
+                  {filteredWorkflows.length === 0 ? (
+                    <div className="col-span-full text-center py-12">
+                      <h3 className="text-xl font-semibold mb-2">No workflows found</h3>
+                      <p className="text-muted-foreground">Try adjusting your filters or create a new workflow.</p>
+                    </div>
+                  ) : (
+                    filteredWorkflows.map((workflow) => (
+                      <WorkflowCard 
+                        key={workflow.id}
+                        name={workflow.name}
+                        description={workflow.description || ''}
+                        status={workflow.status}
+                        lastRun={workflow.last_run ? new Date(workflow.last_run).toLocaleString() : undefined}
+                        nextRun={workflow.next_run ? new Date(workflow.next_run).toLocaleString() : undefined}
+                      />
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
       </div>
     </DashboardLayout>
   );

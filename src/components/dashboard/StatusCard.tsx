@@ -1,6 +1,7 @@
 
 import React, { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const statusCardVariants = cva(
@@ -61,8 +62,15 @@ const StatusCard: React.FC<StatusCardProps> = ({
           <h3 className="text-sm font-medium leading-none text-muted-foreground">
             {title}
           </h3>
-          <div className={cn("text-2xl font-bold", loading && "animate-pulse-slow")}>
-            {loading ? "..." : value}
+          <div className="flex items-center">
+            {loading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin text-muted-foreground" />
+                <span className="text-2xl font-bold">...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{value}</div>
+            )}
           </div>
         </div>
         {icon && <div className="text-muted-foreground">{icon}</div>}
