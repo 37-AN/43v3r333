@@ -21,6 +21,20 @@ export interface Agent {
   updated_at: string;
 }
 
+// Type for creating a new agent - requires the minimal fields needed by Supabase
+export interface NewAgent {
+  name: string;
+  model: string;
+  type: AgentType;
+  capabilities: string[];
+  description?: string | null;
+  status?: AgentStatus;
+  config?: Record<string, any> | null;
+  last_action?: string | null;
+  cpu_usage?: number | null;
+  memory_usage?: number | null;
+}
+
 export const fetchAgents = async () => {
   try {
     const { data, error } = await supabase
@@ -56,7 +70,7 @@ export const fetchAgentsByType = async (type: AgentType) => {
   }
 };
 
-export const createAgent = async (agent: Partial<Agent>) => {
+export const createAgent = async (agent: NewAgent) => {
   try {
     const { data, error } = await supabase
       .from("agents")

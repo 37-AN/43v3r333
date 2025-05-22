@@ -22,6 +22,21 @@ export interface Workflow {
   updated_at: string;
 }
 
+// Type for creating a new workflow - requires the minimal fields needed by Supabase
+export interface NewWorkflow {
+  name: string;
+  trigger_type: TriggerType;
+  description?: string | null;
+  category?: string | null;
+  status?: WorkflowStatus;
+  cron_schedule?: string | null;
+  event_trigger?: string | null;
+  n8n_workflow_id?: string | null;
+  config?: Record<string, any> | null;
+  last_run?: string | null;
+  next_run?: string | null;
+}
+
 export const fetchWorkflows = async () => {
   try {
     const { data, error } = await supabase
@@ -57,7 +72,7 @@ export const fetchWorkflowsByCategory = async (category: string) => {
   }
 };
 
-export const createWorkflow = async (workflow: Partial<Workflow>) => {
+export const createWorkflow = async (workflow: NewWorkflow) => {
   try {
     const { data, error } = await supabase
       .from("workflows")
