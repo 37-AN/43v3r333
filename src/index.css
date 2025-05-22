@@ -99,4 +99,54 @@
   .grid-workflow {
     @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
   }
+  
+  .pulse-dot {
+    @apply relative flex h-2 w-2;
+  }
+  
+  .pulse-dot::before {
+    @apply animate-ping absolute inline-flex h-full w-full rounded-full opacity-75;
+    content: '';
+  }
+  
+  .pulse-dot::after {
+    @apply relative inline-flex rounded-full h-2 w-2;
+    content: '';
+  }
+  
+  .pulse-green::before {
+    @apply bg-green-400;
+  }
+  
+  .pulse-green::after {
+    @apply bg-green-500;
+  }
+  
+  .pulse-yellow::before {
+    @apply bg-yellow-400;
+  }
+  
+  .pulse-yellow::after {
+    @apply bg-yellow-500;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-success {
+    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
+  }
+  
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
+  }
+  
+  .badge-error {
+    @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
+  }
+  
+  .badge-info {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
+  }
 }

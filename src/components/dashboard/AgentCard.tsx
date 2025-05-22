@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Bot, Cpu, ActivitySquare, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toggleAgentStatus, AgentStatus } from "@/services/agentService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AgentCardProps {
   id: string;
@@ -29,12 +30,63 @@ const AgentCard: React.FC<AgentCardProps> = ({
   name,
   description,
   model,
-  status,
+  status: initialStatus,
   lastAction,
   cpuUsage = 0,
   memoryUsage = 0,
 }) => {
   const queryClient = useQueryClient();
+  const [status, setStatus] = useState<AgentStatus>(initialStatus);
+  const [currentCpuUsage, setCurrentCpuUsage] = useState(cpuUsage);
+  const [currentMemoryUsage, setCurrentMemoryUsage] = useState(memoryUsage);
+  const [isLive, setIsLive] = useState(false);
+  
+  useEffect(() => {
+    setStatus(initialStatus);
+    setCurrentCpuUsage(cpuUsage);
+    setCurrentMemoryUsage(memoryUsage);
+  }, [initialStatus, cpuUsage, memoryUsage]);
+
+  // Subscribe to real-time updates for this agent
+  useEffect(() => {
+    const channel = supabase
+      .channel(`agent-${id}-status`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'agents',
+          filter: `id=eq.${id}`
+        },
+        (payload) => {
+          setStatus(payload.new.status as AgentStatus);
+          setCurrentCpuUsage(payload.new.cpu_usage || 0);
+          setCurrentMemoryUsage(payload.new.memory_usage || 0);
+          setIsLive(true);
+          setTimeout(() => setIsLive(false), 3000);
+        }
+      )
+      .subscribe();
+
+    // Mock periodic stats updates for agents that are online
+    let interval: number | undefined;
+    if (status === 'online' || status === 'busy') {
+      interval = window.setInterval(() => {
+        if (status === 'online' || status === 'busy') {
+          const newCpu = Math.min(Math.max(currentCpuUsage + (Math.random() * 10 - 5), 5), 95);
+          const newMemory = Math.min(Math.max(currentMemoryUsage + (Math.random() * 8 - 4), 10), 90);
+          setCurrentCpuUsage(Math.round(newCpu));
+          setCurrentMemoryUsage(Math.round(newMemory));
+        }
+      }, 5000);
+    }
+    
+    return () => {
+      supabase.removeChannel(channel);
+      if (interval) clearInterval(interval);
+    };
+  }, [id, status, currentCpuUsage, currentMemoryUsage]);
   
   const { mutate: toggleStatus, isPending } = useMutation({
     mutationFn: () => toggleAgentStatus(id, status),
@@ -51,6 +103,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           color: "text-green-500",
           bgColor: "bg-green-500",
           text: "Online",
+          pulseDot: "pulse-green",
         };
       case "offline":
         return {
@@ -65,6 +118,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
           color: "text-yellow-500",
           bgColor: "bg-yellow-500",
           text: "Processing",
+          pulseDot: "pulse-yellow",
         };
       case "error":
         return {
@@ -91,7 +145,13 @@ const AgentCard: React.FC<AgentCardProps> = ({
         <div className="flex justify-between items-start mb-4">
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-1">
-              <div className={cn("h-2 w-2 rounded-full", statusDetails.bgColor)} />
+              <div className="relative">
+                {isLive && (status === "online" || status === "busy") ? (
+                  <div className={`pulse-dot ${status === "online" ? "pulse-green" : "pulse-yellow"}`} />
+                ) : (
+                  <div className={cn("h-2 w-2 rounded-full", statusDetails.bgColor)} />
+                )}
+              </div>
               <h3 className="font-medium">{name}</h3>
             </div>
             <span className="text-xs text-muted-foreground">{model}</span>
@@ -112,18 +172,18 @@ const AgentCard: React.FC<AgentCardProps> = ({
                 <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>CPU</span>
               </div>
-              <span className="font-medium">{cpuUsage}%</span>
+              <span className="font-medium">{currentCpuUsage}%</span>
             </div>
-            <Progress value={cpuUsage} className="h-1" />
+            <Progress value={currentCpuUsage} className="h-1" />
             
             <div className="flex justify-between items-center text-xs">
               <div className="flex items-center gap-1.5">
                 <ActivitySquare className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Memory</span>
               </div>
-              <span className="font-medium">{memoryUsage}%</span>
+              <span className="font-medium">{currentMemoryUsage}%</span>
             </div>
-            <Progress value={memoryUsage} className="h-1" />
+            <Progress value={currentMemoryUsage} className="h-1" />
           </div>
         )}
       </div>
