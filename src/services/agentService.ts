@@ -52,21 +52,22 @@ export const fetchAgents = async () => {
   }
 };
 
-export const fetchAgentsByType = async (type: AgentType) => {
+export const fetchAgentById = async (id: string) => {
   try {
     const { data, error } = await supabase
       .from("agents")
       .select("*")
-      .eq("type", type)
-      .order("updated_at", { ascending: false });
+      .eq("id", id)
+      .single();
 
     if (error) {
       throw error;
     }
-    return data as Agent[];
+    
+    return data as Agent;
   } catch (error: any) {
-    toast.error(`Failed to fetch agents: ${error.message}`);
-    return [];
+    toast.error(`Failed to fetch agent: ${error.message}`);
+    throw error;
   }
 };
 
@@ -122,7 +123,6 @@ export const deleteAgent = async (id: string) => {
       throw error;
     }
     
-    toast.success("Agent deleted successfully");
     return true;
   } catch (error: any) {
     toast.error(`Failed to delete agent: ${error.message}`);
@@ -131,7 +131,8 @@ export const deleteAgent = async (id: string) => {
 };
 
 export const toggleAgentStatus = async (id: string, currentStatus: AgentStatus) => {
-  const newStatus: AgentStatus = currentStatus === "offline" ? "online" : "offline";
+  // Toggle between online and offline
+  const newStatus: AgentStatus = currentStatus === "online" ? "offline" : "online";
   
   try {
     const { data, error } = await supabase

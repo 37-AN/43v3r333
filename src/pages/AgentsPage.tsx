@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, MoreVertical, Power, PowerOff, Trash } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AgentCard from "@/components/dashboard/AgentCard";
 import { Button } from "@/components/ui/button";
@@ -12,18 +12,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { fetchAgents, Agent } from "@/services/agentService";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchAgents, Agent, toggleAgentStatus, deleteAgent } from "@/services/agentService";
+import CreateAgentDialog from "@/components/agents/CreateAgentDialog";
+import { toast } from "sonner";
 
 const AgentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modelFilter, setModelFilter] = useState<string>("all");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  
+  const queryClient = useQueryClient();
   
   // Fetch agents from Supabase
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ['agents'],
     queryFn: fetchAgents
+  });
+
+  // Mutation for deleting agent
+  const { mutate: removeAgent } = useMutation({
+    mutationFn: deleteAgent,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      toast.success("Agent deleted successfully");
+    },
   });
   
   const filteredAgents = agents.filter((agent) => {
@@ -36,6 +57,12 @@ const AgentsPage: React.FC = () => {
   });
   
   const models = ["all", ...Array.from(new Set(agents.map((agent) => agent.model)))];
+
+  const handleDeleteAgent = (id: string) => {
+    if (confirm("Are you sure you want to delete this agent? This action cannot be undone.")) {
+      removeAgent(id);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -78,7 +105,10 @@ const AgentsPage: React.FC = () => {
               </SelectContent>
             </Select>
             
-            <Button className="sm:ml-2">
+            <Button 
+              className="sm:ml-2"
+              onClick={() => setCreateDialogOpen(true)}
+            >
               <PlusCircle className="h-4 w-4 mr-2" />
               New Agent
             </Button>
@@ -99,21 +129,60 @@ const AgentsPage: React.FC = () => {
             </div>
           ) : (
             filteredAgents.map((agent) => (
-              <AgentCard 
-                key={agent.id}
-                id={agent.id}
-                name={agent.name}
-                description={agent.description || ''}
-                model={agent.model}
-                status={agent.status}
-                lastAction={agent.last_action || undefined}
-                cpuUsage={agent.cpu_usage || 0}
-                memoryUsage={agent.memory_usage || 0}
-              />
+              <div key={agent.id} className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden">
+                <div className="absolute top-4 right-4">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {agent.status === "offline" ? (
+                        <DropdownMenuItem>
+                          <Power className="h-4 w-4 mr-2" />
+                          <span>Start Agent</span>
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem>
+                          <PowerOff className="h-4 w-4 mr-2" />
+                          <span>Stop Agent</span>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem>View Details</DropdownMenuItem>
+                      <DropdownMenuItem>Configure</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-500 focus:text-red-500"
+                        onClick={() => handleDeleteAgent(agent.id)}
+                      >
+                        <Trash className="h-4 w-4 mr-2" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <AgentCard 
+                  id={agent.id}
+                  name={agent.name}
+                  description={agent.description || ''}
+                  model={agent.model}
+                  status={agent.status}
+                  lastAction={agent.last_action || undefined}
+                  cpuUsage={agent.cpu_usage || 0}
+                  memoryUsage={agent.memory_usage || 0}
+                />
+              </div>
             ))
           )}
         </div>
       </div>
+      
+      <CreateAgentDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </DashboardLayout>
   );
 };

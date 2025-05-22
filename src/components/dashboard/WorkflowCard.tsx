@@ -11,6 +11,7 @@ interface WorkflowCardProps {
   status: WorkflowStatus;
   lastRun?: string;
   nextRun?: string;
+  showHeader?: boolean;
 }
 
 const WorkflowCard: React.FC<WorkflowCardProps> = ({
@@ -19,6 +20,7 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
   status,
   lastRun,
   nextRun,
+  showHeader = true,
 }) => {
   const getStatusDetails = () => {
     switch (status) {
@@ -58,17 +60,27 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
   const statusDetails = getStatusDetails();
 
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow transition-shadow">
-      <div className="p-6">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">{name}</h3>
+    <>
+      {showHeader && (
+        <div className="p-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">{name}</h3>
+            <div className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1", statusDetails.className)}>
+              {statusDetails.icon}
+              {statusDetails.text}
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{description}</p>
+        </div>
+      )}
+      {!showHeader && (
+        <div className="flex justify-end mt-4 mb-2">
           <div className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1", statusDetails.className)}>
             {statusDetails.icon}
             {statusDetails.text}
           </div>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{description}</p>
-      </div>
+      )}
       <div className="px-6 py-4 bg-secondary/50 border-t border-border rounded-b-lg">
         <div className="grid grid-cols-2 gap-4 text-xs">
           <div>
@@ -81,7 +93,7 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
